@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+body {
+  font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+</style>
+
+<body>
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script>
+d3.select('body').append('h2')
+	.attr('text-anchor', 'middle')
+	.text('Global and Hemispheric Zonal Annual Means');
+
+d3.select('body').append('p')
+	.text('Pleas click on the legend on the right side to select the line you want to show.')
+
+var margin = {top: 20, right: 80, bottom: 30, left: 50},
+	width = 960 - margin.left - margin.right,
+	height = 500 - margin.top - margin.bottom;
+
+var parseDate = d3.time.format("%Y").parse,
+	bisectDate = d3.bisector(function(d) { return d.year; }).left,
+    formatValue = d3.format(",.2f");
+
+
+var x = d3.time.scale().range([0,width]); //for time scale
+
+var y = d3.scale.linear().range([height, 0]); 
+
+var color = d3.scale.category10();
+
+var xAxis = d3.svg.axis().scale(x).orient("bottom");
+
+var yAxis = d3.svg.axis().scale(y).orient("left");
+
+var line = d3.svg.line()
+			.interpolate("basis")
+			.x(function(d) { return x(d.year); })
+			.y(function(d) { return y(d.temp); });
+
+var svg = d3.select("body").append("svg")
+			.attr("width", width + margin.left + margin.right)
+			.attr("height", height + margin.top + margin.bottom)
+			.append("g")
+			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+d3.select('body').append('p')
+	.text('This graph visualizes the GISTEMP data for hemispheric zonal Annual temperature means through all the given years. The x-axis is year, the y-axis is Temperature(F). Please click on the legend on the right side to hide or show the line of each zone. The graph shows that the temperature has been increasing over the years. 90S-64S has largest fluctuation. 64N-90N has largest temperature increase speed.');
+
+d3.csv("data.csv", function(error, data) {
+	if (error) throw error;
+
+	color.domain(d3.keys(data[0]).filter(function(key) { return key !== "Year"; }));
+
+	data.forEach(function(d) {
+		d.Year = parseDate(d.Year);
+	});
+
+
+	var types = color.domain().map(function(name) {
+		return {
+			name: name,
+			values: data.map(function(d) {
+				return {year: d.Year, temp: +d[name]}; //+ convert to num
+			})
+		};
+	});
+
+	//add the range of the data
+	x.domain(d3.extent(data, function(d) { return d.Year; }));
+	//extent return the min and max 
+
+	y.domain([
+		d3.min(types, function(c) { return d3.min(c.values, function(v) { return v.temp;});}),
+		d3.max(types, function(c) { return d3.max(c.values, function(v) { return v.temp;});})
+		]);
+
+    //add the x axis
+	svg.append("g")
+		.attr("class", "x axis")
+		.attr("transform", "translate(0," + height + ")")
+		.call(xAxis);
+
+	//add the y axis
+	svg.append("g")
+		.attr("class", "y axis")
+		.call(yAxis)
+		.append("text")
+		.attr("transform", "rotate(-90)")
+		.attr("y", 6)
+		.attr("dy", ".71em")
+		.style("text-anchor", "end")
+		.text("Temperature (F)");
+
+	var type = svg.selectAll(".type")
+		.data(types)
+		.enter()
+		.append("g")
+		.attr("class", "type");
+	
+
+
+	type.append("path")
+		.attr("class", "line")
+		.attr("d", function(d) { return line(d.values);})
+		.attr("id", function(d) { return 'tag'+d.name.replace(/\s+/g, '');}) //strip any space
+		.style("stroke", function(d) { return color(d.name); })
+		.style("opacity", 0);
+
+
+	// Legend
+	num = types.length;
+	legendSpace = height/num;
+
+	type.append("text")
+		.datum(function(d) { return { name: d.name }; })
+		.attr("y", function(d,i) { return (legendSpace/2)+i*legendSpace; })
+		.attr("x", width+15)
+		.style("fill", function(d) { return d.color = color(d.name);})
+		.text(function(d) { return d.name;})
+		.style('font-weight', 'bold')
+		.on("click", function(d) {
+			var active = d.active ? false : true,
+				newOpacity  = active ? 1 : 0;
+			d3.select("#tag" + d.name.replace(/\s+/g, ''))
+				.transition().duration(100)
+				.style("opacity", newOpacity);
+			d.active = active;
+		})
+
+	
+
+	
+});
+
+	// Make it interactive
+
+
+
+
+</script>
+</body>
+
